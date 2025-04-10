@@ -214,7 +214,7 @@ crew = Crew(
 
 result = crew.kickoff()
 
-# Print the final result (mapping + schema)
+
 print("Final Result: ", result)
 
 # -------------------------- Markdown Report --------------------------- #
