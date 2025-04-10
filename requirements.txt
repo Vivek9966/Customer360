@@ -1,0 +1,10 @@
+crewai>=0.28.0
+crewai-tools>=0.1.6
+langchain>=0.0.279
+langchain-community>=0.0.13
+pydantic>=2.0.0
+sqlalchemy>=2.0.0
+typing-extensions>=4.0.0
+langchain-sqlite>=0.0.5
+huggingface-hub>=0.19.0
+ollama>=0.1.5
