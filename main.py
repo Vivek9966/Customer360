@@ -13,7 +13,7 @@ from langchain_community.llms import Ollama
 import sqlite3
 import sqlalchemy
 
-API_KEY = "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"
+
 
 
 sql_llm = Ollama(
