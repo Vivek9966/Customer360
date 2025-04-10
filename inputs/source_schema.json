@@ -1,0 +1,20 @@
+{
+  "crm_db": {
+    "cust_id": "INTEGER",
+    "dob": "DATE",
+    "city": "TEXT",
+    "gender": "TEXT"
+  },
+  "banking_db": {
+    "avg_balance_12m": "FLOAT",
+    "txn_count": "INTEGER"
+  },
+  "credit_db": {
+    "credit_rating": "FLOAT",
+    "total_loans": "INTEGER"
+  },
+  "investment_db": {
+    "asset_value": "FLOAT",
+    "invested_products": "TEXT"
+  }
+}
