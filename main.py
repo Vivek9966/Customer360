@@ -3,7 +3,7 @@ from crewai import LLM
 from crewai_tools import FileReadTool ,PGSearchTool
 from crewai.tools import BaseTool
 import os
-from typing import Type, Optional ,Dict ,Any
+from typing import Type, Optional ,Dict ,Any ,List
 from pydantic import Field
 from langchain_community.utilities import SQLDatabase
 from langchain_community.agent_toolkits.sql.toolkit import SQLDatabaseToolkit
@@ -13,7 +13,7 @@ from langchain_community.llms import Ollama
 import sqlite3
 import sqlalchemy
 
-
+API_KEY = "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"
 
 
 sql_llm = Ollama(
@@ -43,7 +43,7 @@ llm_mapper = LLM(
     temperature=0.4
 )
 
-#----------------------------------------------------------------------SQLDatabase toolkit crew ai compatiable
+#------------------------------------SQLDatabase toolkit crew ai compatiable
 os.environ["DATABASE_URL"] = "sqlite:///example.db"
 
 def convert_langchain_tool_to_crewai(lc_tool: LangChainBaseTool) -> BaseTool:
@@ -51,34 +51,27 @@ def convert_langchain_tool_to_crewai(lc_tool: LangChainBaseTool) -> BaseTool:
         name: str = lc_tool.name
         description: str = lc_tool.description
 
-        # Accept the full input as an optional dictionary.
-        # CrewAI will supply a dict with key "input" or an empty dict.
-        def _run(self, input: Optional[Dict[str, Any]] = None) -> str:
-            # Ensure input is a dictionary.
-            if input is None:
-                input = {}
-            # Extract the inner value for our tool.
-            # If the caller didn't supply "input_text", default to empty string.
-            input_text = input.get("input_text", "")
-            return lc_tool.run(input_text)
+        def _run(self, input_text: Optional[str] = "") -> str:
+            return lc_tool.run(input_text or "")
 
     return CrewAIAdaptedTool()
 
+def get_crewai_sql_tools(db_uri: str, llm) -> List[BaseTool]:
+    """
+    Returns a list of CrewAI-compatible SQL tools connected to the specified DB.
 
-def get_crewai_sql_tools(db_uri: str, llm) -> list[BaseTool]:
-    print(f"🔌 Using SQLite source: {db_uri}")
+    Args:
+        db_uri (str): URI of the database (e.g. sqlite:///example.db or postgresql://...)
+        llm: LangChain-compatible LLM instance (can be HuggingFaceHub, Ollama, etc.)
 
-    # Step 1: Create SQLDatabase from URI
+    Returns:
+        List[BaseTool]: Adapted tools usable in CrewAI agents.
+    """
     db = SQLDatabase.from_uri(db_uri)
-
-    # Step 2: Build LangChain SQL Toolkit
     sql_toolkit = SQLDatabaseToolkit(db=db, llm=llm)
-
-    # Step 3: Convert tools to CrewAI-compatible tools
     langchain_tools = sql_toolkit.get_tools()
-    crewai_sql_tools = [convert_langchain_tool_to_crewai(tool) for tool in langchain_tools]
-
-    return crewai_sql_tools
+    crewai_tools = [convert_langchain_tool_to_crewai(tool) for tool in langchain_tools]
+    return crewai_tools
 
 db = SQLDatabase.from_uri(os.environ["DATABASE_URL"])
 
@@ -127,8 +120,7 @@ crewai_sql_tools = [convert_langchain_tool_to_crewai(tool) for tool in langchain
 
 use_case_reader = FileReadTool(file_path="inputs/use_case.txt")
 
-# SQLite tool for source schema mapping
-sqlite_tool = crewai_sql_tools
+#------------------------------------------------------- SQLite tool for source schema mapping
 crewai_sql_tools = get_crewai_sql_tools("sqlite:///project_memory.db", sql_llm)
 
 #------------DEMO
@@ -157,13 +149,19 @@ schema_designer = Agent(
 source_mode = "sqlite"
 
 # source_tool = get_source_tool(mode=source_mode)
+#-----------------------------------------------Helper agent for sql
+def get_named_tool(tools, name):
+    return next((t for t in tools if t.name == name), None)
+
+list_tool = get_named_tool(crewai_sql_tools, "sql_db_list_tables")
+schema_tool = get_named_tool(crewai_sql_tools, "sql_db_schema")
 #--------------------------------------------------------------
 source_mapper = Agent(
     role="Source Mapper",
-    goal="Map schema fields to source systems (SQLite database)",
-    backstory="Maps the schema fields to source systems by querying available data.",
+    goal="Map target schema to source DB tables/fields",
+    backstory="Knows the DB inside out.",
     llm=llm_mapper,
-    tools=crewai_sql_tools,
+    tools=[list_tool, schema_tool],
     verbose=True
 )
 
@@ -182,12 +180,19 @@ task_schema = Task(
     expected_output="A dictionary: {field_name: data_type}",
     agent=schema_designer
 )
-
+schema_result = task_schema.execute_sync()
 # Task 3
 task_mapping = Task(
-    description="Map schema fields to source fields",
-    expected_output="Mapping: {source_field: target_field}",
-    agent=source_mapper
+    description=(
+        "Given the schema: {schema}, explore the database using the tools provided. "
+        "First call `sql_db_list_tables` to see available tables, then use `sql_db_schema` "
+        "to inspect relevant ones. Finally, return a JSON mapping from schema field to DB column."
+    ),
+    expected_output=(
+        "Example: { 'first_name': 'users.first_name', 'email': 'users.email' }"
+    ),
+    agent=source_mapper,
+    inputs={"schema": schema_result}
 )
 #------------------------------------------Testing __________________
 # task_mapping = Task(
@@ -211,9 +216,11 @@ crew = Crew(
 )
 
 # -------------------------- Running the Demo --------------------------- #
+for tool in crewai_sql_tools:
+    print("✅ Tool loaded:", tool.name)
 
 result = crew.kickoff()
-
+print(result)
 
 print("Final Result: ", result)
 
