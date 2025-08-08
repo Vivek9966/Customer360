@@ -13,8 +13,7 @@ from langchain_community.llms import Ollama
 import sqlite3
 import sqlalchemy
 
-API_KEY = "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"
-
+API_KEY = "#######
 
 sql_llm = Ollama(
     model="mistral",
@@ -80,42 +79,6 @@ sql_toolkit = SQLDatabaseToolkit(db=db,llm=sql_llm)
 langchain_tools = sql_toolkit.get_tools()
 
 crewai_sql_tools = [convert_langchain_tool_to_crewai(tool) for tool in langchain_tools]
-
-#--------------------------------------crewai_sql_tools----------------------------------------------------------
-
-# def get_source_tool(mode: str = "sqlite", db_path="project_memory.db", json_path="inputs/source_schema.json"):
-#     """
-#     Returns the appropriate source schema tool based on selected mode.
-#
-#     Parameters:
-#         mode (str): 'sqlite' or 'json'
-#         db_path (str): Path to SQLite DB
-#         json_path (str): Path to JSON schema file
-#
-#     Returns:
-#         tool: Initialized CrewAI-compatible tool
-#     """
-#     if mode == "sqlite":
-#         if os.path.exists(db_path):
-#             print("🔌 Using SQLite source: ", db_path)
-#             return SQLDatabaseToolkit(db=db_path)
-#         else:
-#             print(f"⚠️ SQLite DB not found at {db_path}. Falling back to JSON.")
-#             mode = "json"
-#
-#     if mode == "json":
-#         if os.path.exists(json_path):
-#             print("📄 Using JSON source: ", json_path)
-#             return FileReadTool(file_path=json_path)
-#         else:
-#             raise FileNotFoundError(f"❌ JSON schema not found at {json_path}.")
-#
-#     raise ValueError("❌ Invalid mode selected. Choose 'sqlite' or 'json'.")
-
-
-
-
-# -------------------------- Tools
 
 
 use_case_reader = FileReadTool(file_path="inputs/use_case.txt")
